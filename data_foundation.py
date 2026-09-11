@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from scipy import stats
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 df = pd.read_csv('data/city_day.csv')
 
@@ -72,6 +74,17 @@ df['AQI_Category'] = pd.cut(
 
 print(df['AQI_Category'].value_counts())
 
+# Section 5 Visualization: AQI Category Bar Chart
+cat_order = ['Good', 'Satisfactory', 'Moderate', 'Poor', 'Very Poor', 'Severe']
+cat_counts = df['AQI_Category'].value_counts().reindex(cat_order)
+
+plt.figure(figsize=(9, 5))
+sns.barplot(x=cat_counts.index, y=cat_counts.values, color='skyblue')
+plt.title('AQI Category Distribution')
+plt.xlabel('AQI Category')
+plt.ylabel('Number of Records')
+plt.xticks(rotation=20)
+plt.show()
 
 scale_cols = ['PM2.5', 'PM10', 'NO2', 'SO2', 'CO', 'AQI']
 
@@ -83,6 +96,20 @@ df_normalized[scale_cols] = MinMaxScaler().fit_transform(df[scale_cols])
 
 print("Standardized:\n", df_standardized[scale_cols].describe())
 print("\nNormalized:\n",  df_normalized[scale_cols].describe())
+
+# Section 6 Visualization: Original vs Standardized vs Normalized
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+sns.histplot(df['PM2.5'], bins=30, ax=axes[0])
+axes[0].set_title('Original PM2.5')
+
+sns.histplot(df_standardized['PM2.5'], bins=30, ax=axes[1])
+axes[1].set_title('Standardized PM2.5')
+
+sns.histplot(df_normalized['PM2.5'], bins=30, ax=axes[2])
+axes[2].set_title('Normalized PM2.5')
+
+plt.show()
 
 # Section 8: Outlier Detection and Removal — Z-Score Method
 
@@ -112,6 +139,28 @@ outlier_mask = (z_scores > Z_THRESHOLD).any(axis=1)
 print(f"\nTotal rows flagged as outliers : {outlier_mask.sum()}")
 print(f"Total rows before removal      : {len(df)}")
 
+# Section 8 Visualization: Box Plot and Outlier Count Bar Chart
+plot_cols_outlier = [c for c in ['PM2.5', 'PM10', 'NO2', 'SO2', 'CO', 'AQI'] if c in df.columns]
+
+# Box plots
+df_melt = df[plot_cols_outlier].melt(var_name='Pollutant', value_name='Value')
+plt.figure(figsize=(10, 5))
+sns.boxplot(data=df_melt, x='Pollutant', y='Value')
+plt.title('Outliers in Pollutant Columns')
+plt.xlabel('Pollutant')
+plt.ylabel('Value')
+plt.show()
+
+# Outlier count bar chart
+sorted_counts = col_outlier_counts.sort_values(ascending=False).reset_index()
+sorted_counts.columns = ['Column', 'Outliers']
+plt.figure(figsize=(9, 5))
+sns.barplot(data=sorted_counts, x='Outliers', y='Column', color='salmon')
+plt.title('Z-Score Outlier Count')
+plt.xlabel('Number of Outliers')
+plt.ylabel('Column')
+plt.show()
+
 # Remove outlier rows
 df = df[~outlier_mask].reset_index(drop=True)
 print(f"Total rows after removal       : {len(df)}")
@@ -122,6 +171,21 @@ mumbai = df[df['City'] == 'Mumbai']['AQI']
 t_stat, p_val = stats.ttest_ind(delhi.dropna(), mumbai.dropna())
 print(f"T-stat: {t_stat:.4f}, P-value: {p_val:.4f}")
 print("Significant difference!" if p_val < 0.05 else "No significant difference")
+
+# Section 9 Visualization: Delhi vs Mumbai
+aqi_city = df[df['City'].isin(['Delhi', 'Mumbai'])][['City', 'AQI']].dropna()
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+sns.histplot(data=aqi_city, x='AQI', hue='City', bins=30, ax=axes[0])
+axes[0].set_title('AQI Distribution: Delhi vs Mumbai')
+axes[0].set_xlabel('AQI')
+axes[0].set_ylabel('Count')
+
+sns.boxplot(data=aqi_city, x='City', y='AQI', ax=axes[1])
+axes[1].set_title('AQI Box Plot: Delhi vs Mumbai')
+axes[1].set_xlabel('City')
+axes[1].set_ylabel('AQI')
+plt.show()
 
 # Skewness and Kurtosis
 for col in ['PM2.5', 'PM10', 'AQI', 'NO2']:
@@ -143,3 +207,15 @@ for col in ['PM2.5', 'PM10', 'AQI']:
     print(f"Mean   : {df[col].mean():.2f}")
     print(f"Median : {df[col].median():.2f}")
     print(f"Mode   : {df[col].mode()[0]:.2f}")
+
+# Section 10 Visualization: Simple distributions
+dist_cols = [c for c in ['PM2.5', 'PM10', 'AQI', 'NO2'] if c in df.columns]
+fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+
+for ax, col in zip(axes.flatten(), dist_cols):
+    sns.histplot(df[col].dropna(), bins=30, kde=True, ax=ax)
+    ax.set_title(f'{col} Distribution')
+    ax.set_xlabel(col)
+    ax.set_ylabel('Count')
+
+plt.show()
